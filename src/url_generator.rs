@@ -14,7 +14,7 @@ impl UrlGenerator {
     /// Using seed ensures same images across runs
     pub fn generate(&self) -> Vec<String> {
         let mut urls: Vec<String> = Vec::new();
-        for i in 0..10 {
+        for i in 0..self.count {
             urls.push(format!("https://picsum.photos/seed/{}/800/600", i));
         }
         urls

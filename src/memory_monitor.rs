@@ -8,24 +8,28 @@ pub struct MemoryMonitor {
 
 impl MemoryMonitor {
     pub fn new() -> Self {
-        todo!()
+        MemoryMonitor { system: System::new() }
     }
 
     /// Get current memory usage in MB
     pub fn current_usage_mb(&mut self) -> u64 {
-        todo!()
-        // Hint: self.system.refresh_memory();
-        // Then: self.system.used_memory() / 1_024 / 1_024
+        self.system.refresh_memory();
+        self.system.used_memory() / 1_024 / 1_024
     }
 
     /// Get available memory in MB
     pub fn available_mb(&mut self) -> u64 {
-        todo!()
+        self.system.refresh_memory();
+        self.system.available_memory() / 1_024 / 1_024
     }
 
     /// Get memory usage as percentage (0-100)
     pub fn usage_percent(&mut self) -> f32 {
-        todo!()
+        self.system.refresh_memory();
+        let used_mem = self.system.used_memory() / 1_024 / 1_024;
+        let total_mem = self.system.total_memory() / 1_024 / 1_024;
+        
+        (used_mem as f32 / total_mem as f32) * 100.0
     }
 }
 
