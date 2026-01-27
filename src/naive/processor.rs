@@ -31,9 +31,9 @@ pub async fn process_naive(count: usize, output_dir: &Path) -> Result<Processing
         println!("Processing image {}/{}: {}", index + 1, count, u);
         
         let metric = process_single_image(&u, output_dir).await.unwrap();
+        let curr_memory_usage = memory_monitor.current_usage_mb();
         total_download_time += metric.download_ms;
         total_resize_time += metric.resize_ms;
-        let curr_memory_usage = memory_monitor.current_usage_mb();
         
         println!("  Download: {}ms, Resize: {}ms, Memory: {}MB", 
                  metric.download_ms, metric.resize_ms, curr_memory_usage);
