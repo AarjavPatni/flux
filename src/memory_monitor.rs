@@ -1,20 +1,27 @@
 // src/memory_monitor.rs
 
-use sysinfo::System;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 
 pub struct MemoryMonitor {
     system: System,
+    pid: Pid,
 }
 
 impl MemoryMonitor {
     pub fn new() -> Self {
-        MemoryMonitor { system: System::new() }
+        let system = System::new();
+        let pid = sysinfo::get_current_pid().unwrap();
+        MemoryMonitor { system, pid }
     }
 
-    /// Get current memory usage in MB
+    /// Get current process memory usage in MB
     pub fn current_usage_mb(&mut self) -> u64 {
-        self.system.refresh_memory();
-        self.system.used_memory() / 1_024 / 1_024
+        self.system.refresh_processes(ProcessesToUpdate::All, true);
+        if let Some(process) = self.system.process(self.pid) {
+            process.memory() / 1_024 / 1_024
+        } else {
+            0
+        }
     }
 
     /// Get available memory in MB
@@ -28,7 +35,7 @@ impl MemoryMonitor {
         self.system.refresh_memory();
         let used_mem = self.system.used_memory() / 1_024 / 1_024;
         let total_mem = self.system.total_memory() / 1_024 / 1_024;
-        
+
         (used_mem as f32 / total_mem as f32) * 100.0
     }
 }
