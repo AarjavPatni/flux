@@ -1,13 +1,15 @@
 use anyhow::Result;
 use futures::future::join_all;
 use image::{load_from_memory, DynamicImage};
-use tokio::{sync::mpsc, task::spawn_blocking};
+use tokio::{sync::mpsc, task::spawn_blocking, time::Instant};
 
 use crate::streaming::download::ImageData;
 
 pub struct ProcessedImage {
     pub url: String,
     pub image: DynamicImage,
+    pub download_ms: u128,
+    pub resize_ms: u128,
 }
 
 pub async fn process_stage(
@@ -16,16 +18,20 @@ pub async fn process_stage(
 ) -> Result<()> {
     let mut handles = vec![];
     while let Some(img_data) = input.recv().await {
+        let start_resize = Instant::now();
         let local_sender = output.clone();
 
         let handle = spawn_blocking(move || {
             let original_img = load_from_memory(&img_data.bytes).unwrap();
             let resized_img =
                 original_img.resize_exact(256, 256, image::imageops::FilterType::Lanczos3);
+            let resize_time = start_resize.elapsed().as_millis();
 
             let processed_img_data = ProcessedImage {
                 url: img_data.url,
                 image: resized_img,
+                download_ms: img_data.download_ms,
+                resize_ms: resize_time,
             };
 
             local_sender.blocking_send(processed_img_data).unwrap();
@@ -61,6 +67,7 @@ mod tests {
                 .send(ImageData {
                     url: "test".to_string(),
                     bytes,
+                    download_ms: 0,
                 })
                 .await
                 .unwrap();

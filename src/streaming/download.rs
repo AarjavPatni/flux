@@ -3,12 +3,13 @@ use futures::future::join_all;
 use std::sync::Arc;
 use tokio::{
     spawn,
-    sync::{mpsc, Semaphore},
+    sync::{Semaphore, mpsc}, time::Instant,
 };
 
 pub struct ImageData {
     pub url: String,
     pub bytes: Vec<u8>,
+    pub download_ms: u128,
 }
 
 pub async fn download_stage(
@@ -20,6 +21,7 @@ pub async fn download_stage(
     let mut handles = vec![];
 
     for u in urls {
+        let start_time = Instant::now();
         let sem_clone = Arc::clone(&sem);
         let output_clone = output.clone();
 
@@ -32,10 +34,12 @@ pub async fn download_stage(
                 .await
                 .unwrap()
                 .to_vec();
+            let download_time = start_time.elapsed().as_millis();
 
             output_clone.send(ImageData {
                 url: u,
                 bytes: img_bytes,
+                download_ms: download_time,
             }).await.unwrap();
         });
         
