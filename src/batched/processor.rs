@@ -15,9 +15,9 @@ use std::{
 };
 use tokio::{
     spawn,
-    sync::Mutex,
     time::{self, sleep},
 };
+use tracing::info;
 
 pub struct BatchedStats {
     pub total_images: usize,
@@ -33,7 +33,7 @@ pub async fn process_batched(
     batch_size: usize,
     output_dir: &Path,
 ) -> Result<BatchedStats> {
-    println!("Starting batch processing of {} images", count);
+    info!(count, batch_size, "starting batch processing");
 
     let url_generator = UrlGenerator::new(count);
     let urls = url_generator.generate();
@@ -57,6 +57,7 @@ pub async fn process_batched(
     for batch in urls.chunks(batch_size) {
         let mut batch_tasks = vec![];
         let start_time = time::Instant::now();
+        info!(batch_size = batch.len(), "starting batch");
 
         for url in batch {
             let owned_url = url.clone();
@@ -72,6 +73,7 @@ pub async fn process_batched(
         let batch_results = join_all(batch_tasks).await;
         let batch_duration = start_time.elapsed().as_millis() as u64;
         total_time_ms += batch_duration;
+        info!(batch_time_ms = batch_duration, "batch complete");
 
         for res in batch_results {
             let (task_download, task_resize) = res?;
@@ -82,12 +84,13 @@ pub async fn process_batched(
 
     monitor_handle.abort();
     let peak_memory_mb = peak_memory_mb.load(Ordering::Relaxed);
-
-    println!("\nBatch processing complete:");
-    println!("  Total time: {}ms", total_time_ms);
-    println!("  Peak memory: {}MB", peak_memory_mb);
-    println!("  Avg download: {}ms", total_download_time / count as u64);
-    println!("  Avg resize: {}ms", total_resize_time / count as u64);
+    info!(
+        total_time_ms,
+        peak_memory_mb,
+        avg_download_ms = total_download_time / count as u64,
+        avg_resize_ms = total_resize_time / count as u64,
+        "batch processing complete"
+    );
 
     Ok(BatchedStats {
         total_images: count,

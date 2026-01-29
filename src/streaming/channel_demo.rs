@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use tokio::{sync::mpsc, time::sleep};
+use tracing::info;
 
 pub async fn channel_demo() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<u64>(20);
@@ -11,13 +12,13 @@ pub async fn channel_demo() -> Result<()> {
     let producer = tokio::spawn(async move {
         for i in 1..=20 {
             tx.send(i).await.unwrap();
-            println!("Producer: sending {}", i);
+            info!(value = i, "producer sent");
         }
     });
 
     let consumer = tokio::spawn(async move {
         while let Some(val) = rx.recv().await {
-            println!("Consumer: received {}", val);
+            info!(value = val, "consumer received");
         }
     });
 
@@ -33,13 +34,13 @@ pub async fn backpressure_demo() -> Result<()> {
     let producer = tokio::spawn(async move {
         for i in 1..=20 {
             tx.send(i).await.unwrap();
-            println!("Producer: sending {}", i);
+            info!(value = i, "producer sent");
         }
     });
 
     let consumer = tokio::spawn(async move {
         while let Some(val) = rx.recv().await {
-            println!("Consumer: received {}", val);
+            info!(value = val, "consumer received");
             sleep(Duration::from_millis(100)).await;
         }
     });

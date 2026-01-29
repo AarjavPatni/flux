@@ -1,11 +1,11 @@
 use crate::{
-    image_processor::{self, process_single_image, ImageMetrics},
-    memory_monitor::{self, MemoryMonitor},
-    url_generator::{self, UrlGenerator},
+    image_processor::process_single_image,
+    url_generator::UrlGenerator,
 };
 use anyhow::Result;
 use std::{cmp::max, path::Path};
 use tokio::time::Instant;
+use tracing::info;
 
 pub struct ProcessingStats {
     pub total_images: usize,
@@ -16,7 +16,7 @@ pub struct ProcessingStats {
 }
 
 pub async fn process_naive(count: usize, output_dir: &Path) -> Result<ProcessingStats> {
-    println!("Starting naive processing of {} images", count);
+    info!(count, "starting naive processing");
 
     let url_generator = UrlGenerator::new(count);
     let urls = url_generator.generate();
@@ -27,27 +27,31 @@ pub async fn process_naive(count: usize, output_dir: &Path) -> Result<Processing
 
     let start_time = Instant::now();
     for (index, u) in urls.iter().enumerate() {
-        println!("Processing image {}/{}: {}", index + 1, count, u);
+        info!(index = index + 1, total = count, url = %u, "processing image");
 
         let metric = process_single_image(&u, output_dir).await.unwrap();
         peak_memory_usage = max(metric.peak_memory_mb, peak_memory_usage);
         total_download_time += metric.download_ms;
         total_resize_time += metric.resize_ms;
 
-        println!(
-            "  Download: {}ms, Resize: {}ms, Memory: {}MB",
-            metric.download_ms, metric.resize_ms, metric.peak_memory_mb
+        info!(
+            download_ms = metric.download_ms,
+            resize_ms = metric.resize_ms,
+            memory_mb = metric.peak_memory_mb,
+            "image processed"
         );
     }
     let end_time = Instant::now();
 
     total_time = (end_time - start_time).as_millis() as u64;
 
-    println!("\nNaive processing complete:");
-    println!("  Total time: {}ms", total_time);
-    println!("  Peak memory: {}MB", peak_memory_usage);
-    println!("  Avg download: {}ms", total_download_time / count as u64);
-    println!("  Avg resize: {}ms", total_resize_time / count as u64);
+    info!(
+        total_time_ms = total_time,
+        peak_memory_mb = peak_memory_usage,
+        avg_download_ms = total_download_time / count as u64,
+        avg_resize_ms = total_resize_time / count as u64,
+        "naive processing complete"
+    );
 
     Ok(ProcessingStats {
         total_images: count,

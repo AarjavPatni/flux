@@ -2,6 +2,7 @@ use anyhow::Result;
 use futures::future::join_all;
 use image::{load_from_memory, DynamicImage};
 use tokio::{sync::mpsc, task::spawn_blocking, time::Instant};
+use tracing::{debug, info};
 
 use crate::streaming::download::ImageData;
 
@@ -17,9 +18,13 @@ pub async fn process_stage(
     output: mpsc::Sender<ProcessedImage>,
 ) -> Result<()> {
     let mut handles = vec![];
+    let mut processed = 0usize;
+    info!("process stage started");
     while let Some(img_data) = input.recv().await {
         let start_resize = Instant::now();
         let local_sender = output.clone();
+        processed += 1;
+        debug!(url = %img_data.url, "processing image");
 
         let handle = spawn_blocking(move || {
             let original_img = load_from_memory(&img_data.bytes).unwrap();
@@ -41,6 +46,8 @@ pub async fn process_stage(
     }
 
     join_all(handles).await;
+
+    info!(processed, "process stage complete");
 
     Ok(())
 }

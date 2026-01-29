@@ -15,6 +15,7 @@ use tokio::{
     time::{sleep, Instant},
     try_join,
 };
+use tracing::info;
 
 use crate::{
     memory_monitor::MemoryMonitor,
@@ -42,18 +43,22 @@ async fn save_stage(
     let mut total_resize_ms = 0;
     let mut image_count: u128 = 0;
 
+    let mut saved = 0u128;
     while let Some(image_data) = input.recv().await {
         let filename = format!("{:x}.jpg", Sha256::digest(image_data.url.as_bytes()));
         image_data.image.save(output_dir.join(filename))?;
         total_download_ms += image_data.download_ms;
         total_resize_ms += image_data.resize_ms;
         image_count += 1;
+        saved += 1;
     }
 
     anyhow::ensure!(image_count > 0, "no images processed");
 
     let avg_download_ms: u64 = (total_download_ms / image_count) as u64;
     let avg_resize_ms: u64 = (total_resize_ms / image_count) as u64;
+
+    info!(saved, "save stage complete");
 
     Ok((avg_download_ms, avg_resize_ms))
 }
@@ -64,6 +69,7 @@ pub async fn process_streaming(
     download_concurrency: usize,
     channel_capacity: usize,
 ) -> Result<StreamingStats> {
+    info!(count, download_concurrency, channel_capacity, "starting streaming pipeline");
     let peak_memory_mb = Arc::new(AtomicU64::new(0));
     let peak_clone = Arc::clone(&peak_memory_mb);
 
@@ -98,6 +104,14 @@ pub async fn process_streaming(
 
     monitor_handle.abort();
     let peak_memory_mb = peak_memory_mb.load(Ordering::Relaxed);
+
+    info!(
+        total_time_ms,
+        peak_memory_mb,
+        avg_download_ms,
+        avg_resize_ms,
+        "streaming pipeline complete"
+    );
 
     Ok(StreamingStats {
         total_images: count,

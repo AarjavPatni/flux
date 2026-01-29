@@ -3,8 +3,10 @@ use futures::future::join_all;
 use std::sync::Arc;
 use tokio::{
     spawn,
-    sync::{Semaphore, mpsc}, time::Instant,
+    sync::{mpsc, Semaphore},
+    time::Instant,
 };
+use tracing::{debug, info};
 
 pub struct ImageData {
     pub url: String,
@@ -17,8 +19,11 @@ pub async fn download_stage(
     output: mpsc::Sender<ImageData>,
     concurrency: usize,
 ) -> Result<()> {
+    let total = urls.len();
     let sem = Arc::new(Semaphore::new(concurrency));
     let mut handles = vec![];
+
+    info!(total, concurrency, "download stage started");
 
     for u in urls {
         let start_time = Instant::now();
@@ -27,6 +32,7 @@ pub async fn download_stage(
 
         let handle = spawn(async move {
             let _permit = sem_clone.acquire().await.unwrap();
+            debug!(url = %u, "downloading");
             let img_bytes = reqwest::get(&u)
                 .await
                 .unwrap()
@@ -47,6 +53,7 @@ pub async fn download_stage(
     }
     
     join_all(handles).await;
+    info!(total, "download stage complete");
 
     Ok(())
 }
