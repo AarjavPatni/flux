@@ -1,9 +1,23 @@
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use std::path::Path;
-use tokio::{spawn, sync::mpsc, time::Instant, try_join};
+use std::{
+    cmp::max,
+    path::Path,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+use tokio::{
+    spawn,
+    sync::mpsc,
+    time::{sleep, Instant},
+    try_join,
+};
 
 use crate::{
+    memory_monitor::MemoryMonitor,
     streaming::{
         download::{download_stage, ImageData},
         process::{process_stage, ProcessedImage},
@@ -14,7 +28,7 @@ use crate::{
 pub struct StreamingStats {
     pub total_images: usize,
     pub total_time_ms: u64,
-    // pub peak_memory_mb: u64,
+    pub peak_memory_mb: u64,
     pub avg_download_ms: u64,
     pub avg_resize_ms: u64,
 }
@@ -50,6 +64,21 @@ pub async fn process_streaming(
     download_concurrency: usize,
     channel_capacity: usize,
 ) -> Result<StreamingStats> {
+    let peak_memory_mb = Arc::new(AtomicU64::new(0));
+    let peak_clone = Arc::clone(&peak_memory_mb);
+
+    let monitor_handle = spawn(async move {
+        let mut memory_monitor = MemoryMonitor::new();
+        loop {
+            let curr_usage = memory_monitor.current_usage_mb();
+            peak_clone.store(
+                max(curr_usage, peak_clone.load(Ordering::Relaxed)),
+                Ordering::Relaxed,
+            );
+            sleep(Duration::from_millis(100)).await;
+        }
+    });
+
     let start_time = Instant::now();
     let urls = UrlGenerator::new(count).generate();
     let output_pathbuf = output_dir.to_path_buf();
@@ -67,11 +96,13 @@ pub async fn process_streaming(
 
     let total_time_ms = start_time.elapsed().as_millis() as u64;
 
-    // TODO: Add peak memory. Convert tracking in naive and batch to true peak as well.
+    monitor_handle.abort();
+    let peak_memory_mb = peak_memory_mb.load(Ordering::Relaxed);
+
     Ok(StreamingStats {
         total_images: count,
         total_time_ms,
-        // peak_memory_mb: u64,
+        peak_memory_mb,
         avg_download_ms,
         avg_resize_ms,
     })
