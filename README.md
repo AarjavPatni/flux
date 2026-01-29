@@ -13,8 +13,6 @@ Inspired by Daft’s blog post: [Processing 300K Images Without OOM](https://www
 ## Architecture
 Pipeline: download → process → save
 
-Add your diagram here (Excalidraw): `docs/flux-architecture.excalidraw`.
-
 ### Codebase Architecture (Mermaid)
 
 **Naive (src/naive + src/image_processor)**
@@ -100,28 +98,18 @@ RUST_LOG=info cargo run -- 50
 RUST_LOG=debug cargo run -- 50
 ```
 
-## Results
-
-Flux prints a comparison table after running all three pipelines.
-Example format:
-
-```
-Approach | Images | Time (ms) | Peak Mem (MB) | Avg DL (ms) | Avg Resize (ms) | Throughput (img/s)
-```
-
-### Example Results (1000 images)
+## Example Results (1k images)
 
 **Test machine**
 - MacBook Pro (14-inch, 2023)
 - Apple M2 Pro (10-core), 16 GB RAM
 - macOS Sequoia 15.7.3 (arm64)
 
-```
-Approach | Images | Time (ms) | Peak Mem (MB) | Avg DL (ms) | Avg Resize (ms) | Throughput (img/s)
-naive     1000      850341       91             302           415             1.18
-batched   1000      146564       210            548           500             6.82
-streaming 1000      77831        263            289           769             12.85
-```
+| Approach | Images | Time (ms) | Peak Mem (MB) | Avg DL (ms) | Avg Resize (ms) | Throughput (img/s) |
+| --- | --- | --- | --- | --- | --- | --- |
+| naive | 1000 | 850341 | 91 | 302 | 415 | 1.18 |
+| batched | 1000 | 146564 | 210 | 548 | 500 | 6.82 |
+| streaming | 1000 | 77831 | 263 | 289 | 769 | 12.85 |
 
 **Speedups (time):**
 - Batched is **5.80x faster** than naive
