@@ -1,4 +1,4 @@
-# Image Processor
+# Flux
 
 Learn streaming data processing by building a concurrent image processor in Rust.
 

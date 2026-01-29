@@ -18,7 +18,7 @@ pub struct ProcessingRun {
     pub avg_download_ms: u64,
     #[tabled(rename = "Avg Resize (ms)")]
     pub avg_resize_ms: u64,
-    #[tabled(rename = "Throughput (img/s)", display_with = "display_throughput")]
+    #[tabled(rename = "Throughput (img/s)", display("display_throughput"))]
     pub throughput: f64,
 }
 
