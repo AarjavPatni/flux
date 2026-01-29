@@ -74,6 +74,25 @@ async fn main() -> Result<()> {
         "streaming summary"
     );
 
+    let naive_throughput = (naive_stats.total_images as f64 / naive_stats.total_time_ms as f64) * 1000.0;
+    let batched_throughput = (batched_stats.total_images as f64 / batched_stats.total_time_ms as f64) * 1000.0;
+    let streaming_throughput =
+        (streaming_stats.total_images as f64 / streaming_stats.total_time_ms as f64) * 1000.0;
+
+    info!(
+        batched_vs_naive = batched_throughput / naive_throughput,
+        streaming_vs_naive = streaming_throughput / naive_throughput,
+        streaming_vs_batched = streaming_throughput / batched_throughput,
+        "throughput speedups"
+    );
+
+    info!(
+        batched_vs_naive = batched_stats.peak_memory_mb as f64 / naive_stats.peak_memory_mb as f64,
+        streaming_vs_naive = streaming_stats.peak_memory_mb as f64 / naive_stats.peak_memory_mb as f64,
+        streaming_vs_batched = streaming_stats.peak_memory_mb as f64 / batched_stats.peak_memory_mb as f64,
+        "peak memory ratios"
+    );
+
     let mut collector = MetricsCollector::new();
     collector.add_run(ProcessingRun::new(
         "naive",

@@ -90,6 +90,61 @@ impl MetricsCollector {
 
         println!("\nFlux Image Processor - Comparison\n");
         println!("{}\n", Table::new(&self.runs).with(Style::rounded()));
+
+        let naive = self.runs.iter().find(|run| run.approach == "naive");
+        let batched = self.runs.iter().find(|run| run.approach == "batched");
+        let streaming = self.runs.iter().find(|run| run.approach == "streaming");
+
+        if let (Some(naive), Some(batched)) = (naive, batched) {
+            let speedup = naive.total_time_ms as f64 / batched.total_time_ms as f64;
+            println!("Batched is {:.2}x faster than naive.", speedup);
+        }
+
+        if let (Some(naive), Some(streaming)) = (naive, streaming) {
+            let speedup = naive.total_time_ms as f64 / streaming.total_time_ms as f64;
+            println!("Streaming is {:.2}x faster than naive.", speedup);
+        }
+
+        if let (Some(batched), Some(streaming)) = (batched, streaming) {
+            let speedup = batched.total_time_ms as f64 / streaming.total_time_ms as f64;
+            println!("Streaming is {:.2}x faster than batched.\n", speedup);
+        }
+
+        if let (Some(naive), Some(batched)) = (naive, batched) {
+            let ratio = batched.throughput / naive.throughput;
+            println!("Batched throughput is {:.2}x higher than naive.", ratio);
+        }
+
+        if let (Some(naive), Some(streaming)) = (naive, streaming) {
+            let ratio = streaming.throughput / naive.throughput;
+            println!("Streaming throughput is {:.2}x higher than naive.", ratio);
+        }
+
+        if let (Some(batched), Some(streaming)) = (batched, streaming) {
+            let ratio = streaming.throughput / batched.throughput;
+            println!(
+                "Streaming throughput is {:.2}x higher than batched.\n",
+                ratio
+            );
+        }
+
+        if let (Some(naive), Some(batched)) = (naive, batched) {
+            let ratio = batched.peak_memory_mb as f64 / naive.peak_memory_mb as f64;
+            println!("Batched peak memory is {:.2}x higher than naive.", ratio);
+        }
+
+        if let (Some(naive), Some(streaming)) = (naive, streaming) {
+            let ratio = streaming.peak_memory_mb as f64 / naive.peak_memory_mb as f64;
+            println!("Streaming peak memory is {:.2}x higher than naive.", ratio);
+        }
+
+        if let (Some(batched), Some(streaming)) = (batched, streaming) {
+            let ratio = streaming.peak_memory_mb as f64 / batched.peak_memory_mb as f64;
+            println!(
+                "Streaming peak memory is {:.2}x higher than batched.\n",
+                ratio
+            );
+        }
     }
 }
 
