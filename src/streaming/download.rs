@@ -26,13 +26,13 @@ pub async fn download_stage(
     info!(total, concurrency, "download stage started");
 
     for u in urls {
-        let start_time = Instant::now();
         let sem_clone = Arc::clone(&sem);
         let output_clone = output.clone();
 
         let handle = spawn(async move {
             let _permit = sem_clone.acquire().await.unwrap();
             debug!(url = %u, "downloading");
+            let start_time = Instant::now();
             let img_bytes = reqwest::get(&u)
                 .await
                 .unwrap()
@@ -42,16 +42,19 @@ pub async fn download_stage(
                 .to_vec();
             let download_time = start_time.elapsed().as_millis();
 
-            output_clone.send(ImageData {
-                url: u,
-                bytes: img_bytes,
-                download_ms: download_time,
-            }).await.unwrap();
+            output_clone
+                .send(ImageData {
+                    url: u,
+                    bytes: img_bytes,
+                    download_ms: download_time,
+                })
+                .await
+                .unwrap();
         });
-        
+
         handles.push(handle);
     }
-    
+
     join_all(handles).await;
     info!(total, "download stage complete");
 

@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
     if tracing::enabled!(tracing::Level::INFO) {
         println!();
     }
-    let streaming_stats = process_streaming(count, &streaming_dir, 8, 10).await?;
+    let streaming_stats = process_streaming(count, &streaming_dir, 8, 10, 10).await?;
     info!(
         total_time_ms = streaming_stats.total_time_ms,
         peak_memory_mb = streaming_stats.peak_memory_mb,

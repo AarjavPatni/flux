@@ -1,7 +1,13 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use futures::future::join_all;
 use image::{load_from_memory, DynamicImage};
-use tokio::{sync::mpsc, task::spawn_blocking, time::Instant};
+use tokio::{
+    sync::{mpsc, Semaphore},
+    task::spawn_blocking,
+    time::Instant,
+};
 use tracing::{debug, info};
 
 use crate::streaming::download::ImageData;
@@ -16,17 +22,22 @@ pub struct ProcessedImage {
 pub async fn process_stage(
     mut input: mpsc::Receiver<ImageData>,
     output: mpsc::Sender<ProcessedImage>,
+    procses_concurrency: usize,
 ) -> Result<()> {
     let mut handles = vec![];
     let mut processed = 0usize;
+    let sem = Arc::new(Semaphore::new(procses_concurrency));
+
     info!("process stage started");
     while let Some(img_data) = input.recv().await {
-        let start_resize = Instant::now();
         let local_sender = output.clone();
         processed += 1;
+        let permit = Arc::clone(&sem).acquire_owned().await.unwrap();
         debug!(url = %img_data.url, "processing image");
 
         let handle = spawn_blocking(move || {
+            let _permit = permit;
+            let start_resize = Instant::now();
             let original_img = load_from_memory(&img_data.bytes).unwrap();
             let resized_img =
                 original_img.resize_exact(256, 256, image::imageops::FilterType::Lanczos3);
@@ -81,7 +92,7 @@ mod tests {
         });
 
         tokio::spawn(async move {
-            process_stage(input_rx, output_tx).await.unwrap();
+            process_stage(input_rx, output_tx, 10).await.unwrap();
         });
 
         if let Some(processed) = output_rx.recv().await {

@@ -67,6 +67,7 @@ pub async fn process_streaming(
     count: usize,
     output_dir: &Path,
     download_concurrency: usize,
+    process_concurrency: usize,
     channel_capacity: usize,
 ) -> Result<StreamingStats> {
     info!(count, download_concurrency, channel_capacity, "starting streaming pipeline");
@@ -94,7 +95,7 @@ pub async fn process_streaming(
 
     let download_task =
         spawn(async move { download_stage(urls, download_tx, download_concurrency).await });
-    let process_task = spawn(async move { process_stage(download_rx, process_tx).await });
+    let process_task = spawn(async move { process_stage(download_rx, process_tx, process_concurrency).await });
     let save_task = spawn(async move { save_stage(process_rx, &output_pathbuf).await });
 
     let (_, _, save_res) = try_join!(download_task, process_task, save_task)?;
@@ -132,7 +133,7 @@ mod tests {
         let output = Path::new("test_output_streaming");
         fs::create_dir_all(output).unwrap();
 
-        let stats = process_streaming(10, output, 3, 5).await.unwrap();
+        let stats = process_streaming(10, output, 3, 5, 5).await.unwrap();
 
         assert_eq!(stats.total_images, 10);
         assert!(stats.total_time_ms > 0);
