@@ -63,9 +63,7 @@ pub async fn process_batched(
             let owned_path = output_dir.to_path_buf();
 
             batch_tasks.push(spawn(async move {
-                let task_metric = process_single_image(&owned_url, &owned_path, None)
-                    .await
-                    .unwrap();
+                let task_metric = process_single_image(&owned_url, &owned_path).await.unwrap();
 
                 (task_metric.download_ms, task_metric.resize_ms)
             }));
