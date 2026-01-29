@@ -1,16 +1,22 @@
 use crate::{
-    image_processor::{self, process_single_image},
-    memory_monitor::MemoryMonitor,
+    image_processor::process_single_image, memory_monitor::MemoryMonitor,
     url_generator::UrlGenerator,
 };
 use anyhow::Result;
 use futures::future::join_all;
-use std::{io::Error, path::Path, sync::Arc};
+use std::{
+    cmp::max,
+    path::Path,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 use tokio::{
     spawn,
     sync::Mutex,
-    task::JoinHandle,
-    time::{self, Instant},
+    time::{self, sleep},
 };
 
 pub struct BatchedStats {
@@ -31,9 +37,22 @@ pub async fn process_batched(
 
     let url_generator = UrlGenerator::new(count);
     let urls = url_generator.generate();
-    let (mut total_download_time, mut total_resize_time, mut total_time_ms, mut peak_memory_mb) =
-        (0, 0, 0, 0);
-    let memory_monitor = Arc::new(Mutex::new(MemoryMonitor::new()));
+    let (mut total_download_time, mut total_resize_time, mut total_time_ms) = (0, 0, 0);
+
+    let peak_memory_mb = Arc::new(AtomicU64::new(0));
+    let peak_clone = Arc::clone(&peak_memory_mb);
+
+    let monitor_handle = spawn(async move {
+        let mut memory_monitor = MemoryMonitor::new();
+        loop {
+            let curr_usage = memory_monitor.current_usage_mb();
+            peak_clone.store(
+                max(curr_usage, peak_clone.load(Ordering::Relaxed)),
+                Ordering::Relaxed,
+            );
+            sleep(Duration::from_millis(100)).await;
+        }
+    });
 
     for batch in urls.chunks(batch_size) {
         let mut batch_tasks = vec![];
@@ -42,17 +61,13 @@ pub async fn process_batched(
         for url in batch {
             let owned_url = url.clone();
             let owned_path = output_dir.to_path_buf();
-            let monitor_clone = Arc::clone(&memory_monitor);
 
             batch_tasks.push(spawn(async move {
-                let task_metric = process_single_image(&owned_url, &owned_path).await.unwrap();
-                let task_memory_usage = monitor_clone.lock().await.current_usage_mb();
+                let task_metric = process_single_image(&owned_url, &owned_path, None)
+                    .await
+                    .unwrap();
 
-                (
-                    task_metric.download_ms,
-                    task_metric.resize_ms,
-                    task_memory_usage,
-                )
+                (task_metric.download_ms, task_metric.resize_ms)
             }));
         }
 
@@ -61,15 +76,14 @@ pub async fn process_batched(
         total_time_ms += batch_duration;
 
         for res in batch_results {
-            let (task_download, task_resize, task_memory) = res?;
+            let (task_download, task_resize) = res?;
             total_download_time += task_download;
             total_resize_time += task_resize;
-
-            if task_memory > peak_memory_mb {
-                peak_memory_mb = task_memory;
-            }
         }
     }
+
+    monitor_handle.abort();
+    let peak_memory_mb = peak_memory_mb.load(Ordering::Relaxed);
 
     println!("\nBatch processing complete:");
     println!("  Total time: {}ms", total_time_ms);

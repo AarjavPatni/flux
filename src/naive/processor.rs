@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 use tokio::time::Instant;
-use std::path::Path;
+use std::{cmp::max, path::Path};
 
 pub struct ProcessingStats {
     pub total_images: usize,
@@ -30,17 +30,13 @@ pub async fn process_naive(count: usize, output_dir: &Path) -> Result<Processing
     for (index, u) in urls.iter().enumerate() {
         println!("Processing image {}/{}: {}", index + 1, count, u);
         
-        let metric = process_single_image(&u, output_dir).await.unwrap();
-        let curr_memory_usage = memory_monitor.current_usage_mb();
+        let metric = process_single_image(&u, output_dir, Some(&mut memory_monitor)).await.unwrap();
+        peak_memory_usage = max(metric.peak_memory_mb.unwrap(), peak_memory_usage);
         total_download_time += metric.download_ms;
         total_resize_time += metric.resize_ms;
         
         println!("  Download: {}ms, Resize: {}ms, Memory: {}MB", 
-                 metric.download_ms, metric.resize_ms, curr_memory_usage);
-        
-        if curr_memory_usage > peak_memory_usage {
-            peak_memory_usage = curr_memory_usage;
-        }
+                 metric.download_ms, metric.resize_ms, metric.peak_memory_mb.unwrap());
     }
     let end_time = Instant::now();
     
