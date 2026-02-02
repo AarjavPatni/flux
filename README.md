@@ -1,6 +1,6 @@
 # Flux
 
-*This project was inspired by Daft's blog post: [Processing 300K Images Without OOM](https://www.daft.ai/blog/processing-300k-images-without-oom)*
+_This project was inspired by Daft's blog post: [Processing 300K Images Without OOM](https://www.daft.ai/blog/processing-300k-images-without-oom)_
 
 Streaming image processing in Rust. Compare naive, batched, and streaming pipelines while tracking time and memory.
 
@@ -29,55 +29,15 @@ cargo build --release
 
 **Naive (src/naive + src/image_processor)**
 
-```mermaid
-flowchart LR
-  A[URLs
-url_generator.rs] --> B[process_single_image
-image_processor.rs]
-  B --> C[download]
-  B --> D[decode]
-  B --> E[resize]
-  B --> F[save]
-  F --> G[Output files
-data/processed/naive]
-```
+![naive-arch](./assets/naive-arch.svg)
 
 **Batched (src/batched)**
 
-```mermaid
-flowchart LR
-  A[URLs
-url_generator.rs] --> B[Batches
-batched/processor.rs]
-  B --> C[Spawn tasks per batch]
-  C --> D[process_single_image
-image_processor.rs]
-  D --> E[Output files
-data/processed/batched]
-  C --> F[Global memory sampler
-memory_monitor.rs]
-```
+![batch-arch](./assets/batch-arch.svg)
 
 **Streaming (src/streaming)**
 
-```mermaid
-flowchart LR
-  A[URLs
-url_generator.rs] --> B[Download stage
-streaming/download.rs]
-  B -->|mpsc channel| C[Process stage
-streaming/process.rs]
-  C -->|mpsc channel| D[Save stage
-streaming/pipeline.rs]
-  D --> E[Output files
-data/processed/streaming]
-  B --> F[Semaphore
-download concurrency]
-  C --> G[Semaphore
-process concurrency]
-  D --> H[Global memory sampler
-memory_monitor.rs]
-```
+![streaming-arch](./assets/streaming-arch.svg)
 
 ## Usage
 
@@ -159,4 +119,3 @@ src/
 - Network variability affects timings
 - Picsum images are random but stable via seeds
 - Streaming pipeline uses bounded channels for backpressure
-
