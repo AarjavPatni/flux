@@ -22,11 +22,11 @@ pub struct ProcessedImage {
 pub async fn process_stage(
     mut input: mpsc::Receiver<ImageData>,
     output: mpsc::Sender<ProcessedImage>,
-    procses_concurrency: usize,
+    process_concurrency: usize,
 ) -> Result<()> {
     let mut handles = vec![];
     let mut processed = 0usize;
-    let sem = Arc::new(Semaphore::new(procses_concurrency));
+    let sem = Arc::new(Semaphore::new(process_concurrency));
 
     info!("process stage started");
     while let Some(img_data) = input.recv().await {

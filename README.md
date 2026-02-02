@@ -1,21 +1,34 @@
 # Flux
 
+*This project was inspired by Daft's blog post: [Processing 300K Images Without OOM](https://www.daft.ai/blog/processing-300k-images-without-oom)*
+
 Streaming image processing in Rust. Compare naive, batched, and streaming pipelines while tracking time and memory.
 
-Inspired by Daft’s blog post: [Processing 300K Images Without OOM](https://www.daft.ai/blog/processing-300k-images-without-oom)
+**Project writeup:** [Flux: Image Processing Without OOM](https://www.aarjav.xyz/blog/flux-image-processing)
+
+## Prerequisites
+
+- Rust 1.70+ (install via [rustup](https://rustup.rs/))
+
+## Installation
+
+```bash
+git clone https://github.com/AarjavPatni/flux.git
+cd flux
+cargo build --release
+```
 
 ## What It Does
+
 - Downloads images from Lorem Picsum
 - Processes images via three approaches: naive, batched, streaming
 - Tracks time, memory, and throughput
 - Outputs a comparison table
 
 ## Architecture
-Pipeline: download → process → save
-
-### Codebase Architecture (Mermaid)
 
 **Naive (src/naive + src/image_processor)**
+
 ```mermaid
 flowchart LR
   A[URLs
@@ -30,6 +43,7 @@ data/processed/naive]
 ```
 
 **Batched (src/batched)**
+
 ```mermaid
 flowchart LR
   A[URLs
@@ -45,6 +59,7 @@ memory_monitor.rs]
 ```
 
 **Streaming (src/streaming)**
+
 ```mermaid
 flowchart LR
   A[URLs
@@ -64,67 +79,67 @@ process concurrency]
 memory_monitor.rs]
 ```
 
-## Quick Start
+## Usage
 
 ```bash
-# Run all pipelines (default: 200 images)
-RUST_LOG=info cargo run -- 200
+# Run all pipelines with specified image count (default: 200)
+cargo run --release -- <image_count>
 
-# Smaller run for quick sanity check
-RUST_LOG=info cargo run -- 20
+# Examples
+RUST_LOG=info cargo run --release -- 1000
+RUST_LOG=info cargo run --release -- 20
 ```
 
-Outputs are written to:
+**Logging levels:** Set `RUST_LOG=info` for summaries or `RUST_LOG=debug` for per-image details.
+
+**Outputs are written to:**
+
 ```
 data/processed/naive
 data/processed/batched
 data/processed/streaming
 ```
 
-## CLI
-
-```bash
-cargo run -- <image_count>
-```
-
-If no argument is provided, Flux defaults to **200** images.
-
-## Logging
-
-Flux uses `tracing`.
-
-```bash
-RUST_LOG=info cargo run -- 50
-RUST_LOG=debug cargo run -- 50
-```
-
 ## Example Results (1k images)
 
 **Test machine**
+
 - MacBook Pro (14-inch, 2023)
 - Apple M2 Pro (10-core), 16 GB RAM
 - macOS Sequoia 15.7.3 (arm64)
 
-| Approach | Images | Time (ms) | Peak Mem (MB) | Avg DL (ms) | Avg Resize (ms) | Throughput (img/s) |
-| --- | --- | --- | --- | --- | --- | --- |
-| naive | 1000 | 850341 | 91 | 302 | 415 | 1.18 |
-| batched | 1000 | 146564 | 210 | 548 | 500 | 6.82 |
-| streaming | 1000 | 77831 | 263 | 289 | 769 | 12.85 |
+| Approach  | Images | Time (ms) | Peak Mem (MB) | Avg DL (ms) | Avg Resize (ms) | Throughput (img/s) |
+| --------- | ------ | --------- | ------------- | ----------- | --------------- | ------------------ |
+| naive     | 1000   | 850341    | 91            | 302         | 415             | 1.18               |
+| batched   | 1000   | 146564    | 210           | 548         | 500             | 6.82               |
+| streaming | 1000   | 77831     | 263           | 289         | 769             | 12.85              |
 
 **Speedups (time):**
+
 - Batched is **5.80x faster** than naive
 - Streaming is **10.93x faster** than naive
 - Streaming is **1.88x faster** than batched
 
 **Throughput (img/s):**
+
 - Batched is **5.80x higher** than naive
 - Streaming is **10.93x higher** than naive
 - Streaming is **1.88x higher** than batched
 
 **Peak memory (MB):**
+
 - Batched is **2.31x higher** than naive
 - Streaming is **2.89x higher** than naive
 - Streaming is **1.25x higher** than batched
+
+### Implementation Notes
+
+**Memory usage results:** Streaming shows higher peaks due to overlapping pipeline stages with data in-flight.
+
+**Concurrency parameters (for 1k run):**
+
+- Batched: batch size 10
+- Streaming: download concurrency 20, process concurrency 4, channel capacity 50
 
 ## Project Structure
 
@@ -140,10 +155,8 @@ src/
 ```
 
 ## Notes
+
 - Network variability affects timings
 - Picsum images are random but stable via seeds
 - Streaming pipeline uses bounded channels for backpressure
 
-## Next Steps
-- TUI for live metrics
-- Benchmark exports (CSV + charts)
